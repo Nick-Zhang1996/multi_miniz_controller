@@ -1,3 +1,0 @@
-(fp_lib_table
-  (lib (name "Multi")(type "KiCad")(uri "${KIPRJMOD}/Multi.pretty")(options "")(descr ""))
-)
