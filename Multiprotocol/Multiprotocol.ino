@@ -124,6 +124,7 @@ void setup() {
   TCCR1B = (1 << CS11); // prescaler8, set timer1 to increment every
                         // 0.5us(16Mhz) and start timer
 
+  protocol_init();
   // Random
   random_init();
 
@@ -340,6 +341,97 @@ static void __attribute__((unused)) crc8_update(uint8_t byte) {
       crc8 = (crc8 << 1) ^ crc8_polynomial;
     else
       crc8 <<= 1;
+}
+
+// Protocol start
+static void protocol_init() {
+  if (IS_WAIT_BIND_off) {
+    remote_callback = 0;       // No protocol
+    LED_off;                   // Led off during protocol init
+    crc16_polynomial = 0x1021; // Default CRC crc16_polynomial
+    crc8_polynomial = 0x31;    // Default CRC crc8_polynomial
+    prev_option = option;
+
+    multi_protocols_index = 0xFF;
+    binding_idx = 0;
+
+    // Set global ID and rx_tx_addr
+    MProtocol_id = RX_num + MProtocol_id_master;
+    set_rx_tx_addr(MProtocol_id);
+
+    DATA_BUFFER_LOW_off;
+
+    SUB_PROTO_INVALID;
+    option_override = 0xFF;
+
+    blink = millis();
+
+    debugln("Protocol selected: %d, sub proto %d, rxnum %d, option %d",
+            protocol, sub_protocol, RX_num, option);
+    if (protocol) {
+      // Reset all modules
+      modules_reset();
+
+      uint8_t index = 0;
+      // #if defined(FRSKYX_CC2500_INO) && defined(MULTI_EU)
+      //	if( ! ( (protocol == PROTO_FRSKYX || protocol == PROTO_FRSKYX2)
+      //&& sub_protocol < 2 ) ) #endif
+      while (multi_protocols[index].protocol != 0xFF) {
+        if (multi_protocols[index].protocol == protocol) {
+          // Save index
+          multi_protocols_index = index;
+          // Check sub protocol validity
+          if (((sub_protocol & 0x07) == 0) ||
+              (sub_protocol & 0x07) < multi_protocols[index].nbrSubProto)
+            SUB_PROTO_VALID;
+          if (IS_SUB_PROTO_VALID) { // Start the protocol
+            // Set the RF switch
+            rf_switch(multi_protocols[index].rfSwitch);
+            // Init protocol
+            multi_protocols[index].Init(); // Init could invalidate the sub
+                                           // proto in case it is not suuported
+            if (IS_SUB_PROTO_VALID)
+              remote_callback =
+                  multi_protocols[index]
+                      .CallBack; // Save call back function address
+          }
+          break;
+        }
+        index++;
+      }
+      // Send a telemetry status right now
+      SEND_MULTI_STATUS_on;
+      Update_Telem();
+    }
+  }
+
+#if defined(WAIT_FOR_BIND) && defined(ENABLE_BIND_CH)
+  if (IS_AUTOBIND_FLAG_on && IS_BIND_CH_PREV_off &&
+      (cur_protocol[1] & 0x80) == 0 &&
+      mode_select ==
+          MODE_SERIAL) { // Autobind is active but no bind requested by either
+                         // BIND_CH or BIND. But do not wait if in PPM mode...
+    WAIT_BIND_on;
+    return;
+  }
+#endif
+  WAIT_BIND_off;
+  CHANGE_PROTOCOL_FLAG_off;
+
+  if (protocol) {
+    // Wait 5ms after protocol init
+    cli();                    // disable global int
+    OCR1A = TCNT1 + 5000 * 2; // set compare A for callback
+#ifndef STM32_BOARD
+    TIFR1 = OCF1A_bm; // clear compare A flag
+#else
+    TIMER2_BASE->SR =
+        0x1E5F & ~TIMER_SR_CC1IF; // Clear Timer2/Comp1 interrupt flag
+#endif
+    sei();                // enable global int
+    BIND_BUTTON_FLAG_off; // do not bind/reset id anymore even if protocol
+                          // change
+  }
 }
 
 static void random_init(void) {
