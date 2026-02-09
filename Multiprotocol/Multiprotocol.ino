@@ -162,14 +162,13 @@ void setup() {
 uint16_t next_callback, diff;
 uint8_t count = 0;
 void loop() {
-  while (remote_callback == 0 || IS_WAIT_BIND_on || IS_INPUT_SIGNAL_off) {
+  while (remote_callback == 0 || IS_WAIT_BIND_on || IS_INPUT_SIGNAL_off)
     if (!Update_All()) {
       cli();         // Disable global int due to RW of 16 bits registers
-      OCR1A = TCNT1; // Callback should already have been called... Use "now"
-                     // as new sync point.
+      OCR1A = TCNT1; // Callback should already have been called... Use "now" as
+                     // new sync point.
       sei();         // Enable global int
     }
-  }
   TX_MAIN_PAUSE_on;
   tx_pause();
   next_callback = remote_callback() << 1;
@@ -180,6 +179,36 @@ void loop() {
   TIFR1 = OCF1A_bm;       // Clear compare A=callback flag
   diff = OCR1A - TCNT1;   // Calc the time difference
   sei();                  // Enable global int
+  if ((diff & 0x8000) &&
+      !(next_callback & 0x8000)) { // Negative result=callback should already
+                                   // have been called...
+    debugln("Short CB:%d", next_callback);
+  } else {
+    if (IS_RX_FLAG_on || IS_PPM_FLAG_on) { // Serial or PPM is waiting...
+      if (++count > 10) { // The protocol does not leave enough time for an
+                          // update so forcing it
+        count = 0;
+        debugln("Force update");
+        Update_All();
+      }
+    }
+    while ((TIFR1 & OCF1A_bm) == 0) {
+      if (diff > 900 * 2) { // If at least 1ms is available update values
+        if ((diff & 0x8000) &&
+            !(next_callback & 0x8000)) { // Should never get here...
+          debugln("!!!BUG!!!");
+          break;
+        }
+        count = 0;
+        Update_All();
+        if (remote_callback == 0)
+          break;
+        cli(); // Disable global int due to RW of 16 bits registers
+        diff = OCR1A - TCNT1; // Calc the time difference
+        sei();                // Enable global int
+      }
+    }
+  }
 }
 
 void End_Bind() {
