@@ -92,10 +92,6 @@ volatile uint8_t rx_idx = 0, rx_len = 0;
 // Callback
 uint16_function_t remote_callback = 0;
 
-// Telemetry
-#define TELEMETRY_BUFFER_SIZE 32
-uint8_t packet_in[TELEMETRY_BUFFER_SIZE]; // telemetry receiving packets
-
 uint8_t multi_protocols_index = 0xFF;
 
 void setup() {
@@ -162,51 +158,20 @@ void setup() {
 uint16_t next_callback, diff;
 uint8_t count = 0;
 void loop() {
-  while (remote_callback == 0 || IS_WAIT_BIND_on || IS_INPUT_SIGNAL_off)
-    if (!Update_All()) {
-      cli();         // Disable global int due to RW of 16 bits registers
-      OCR1A = TCNT1; // Callback should already have been called... Use "now" as
-                     // new sync point.
-      sei();         // Enable global int
-    }
   TX_MAIN_PAUSE_on;
-  tx_pause();
+  // Timer ticks till next call back
   next_callback = remote_callback() << 1;
   TX_MAIN_PAUSE_off;
-  tx_resume();
-  cli();                  // Disable global int due to RW of 16 bits registers
+  cli(); // Prevent race condition in accessing multi-byte registers
   OCR1A += next_callback; // Calc when next_callback should happen
-  TIFR1 = OCF1A_bm;       // Clear compare A=callback flag
+  TIFR1 = _BV(OCF1A);     // Clear compare A=callback flag
   diff = OCR1A - TCNT1;   // Calc the time difference
-  sei();                  // Enable global int
-  if ((diff & 0x8000) &&
-      !(next_callback & 0x8000)) { // Negative result=callback should already
-                                   // have been called...
+  sei();
+  if ((diff & 0x8000) && !(next_callback & 0x8000)) {
     debugln("Short CB:%d", next_callback);
   } else {
-    if (IS_RX_FLAG_on || IS_PPM_FLAG_on) { // Serial or PPM is waiting...
-      if (++count > 10) { // The protocol does not leave enough time for an
-                          // update so forcing it
-        count = 0;
-        debugln("Force update");
-        Update_All();
-      }
-    }
-    while ((TIFR1 & OCF1A_bm) == 0) {
-      if (diff > 900 * 2) { // If at least 1ms is available update values
-        if ((diff & 0x8000) &&
-            !(next_callback & 0x8000)) { // Should never get here...
-          debugln("!!!BUG!!!");
-          break;
-        }
-        count = 0;
-        Update_All();
-        if (remote_callback == 0)
-          break;
-        cli(); // Disable global int due to RW of 16 bits registers
-        diff = OCR1A - TCNT1; // Calc the time difference
-        sei();                // Enable global int
-      }
+    while ((TIFR1 & _BV(OCF1A)) == 0) {
+      // Wait till compare timer triggers
     }
   }
 }
@@ -283,7 +248,6 @@ static void set_rx_tx_addr(uint32_t id) { // Used by almost all protocols
 }
 
 static uint32_t random_id(uint16_t address, uint8_t create_new) {
-#ifndef FORCE_GLOBAL_ID
   uint32_t id = 0;
 
   if (eeprom_read_byte((EE_ADDR)(address + 10)) == 0xf0 &&
@@ -428,9 +392,6 @@ static void protocol_init() {
         }
         index++;
       }
-      // Send a telemetry status right now
-      SEND_MULTI_STATUS_on;
-      Update_Telem();
     }
   }
 

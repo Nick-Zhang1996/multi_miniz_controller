@@ -60,8 +60,19 @@
 // you need to pick and choose. Comment the protocols you are not using with
 // "//" to save Flash space.
 
-// Protocol for module configuration
+// TODO check if these are indeed needed, some are just in checks, and not used
+// in code Protocol for module configuration
 #define MULTI_CONFIG_INO
+#define ARDUINO_AVR_NANO
+#define MIN_PPM_CHANNELS 2
+#define MAX_PPM_CHANNELS 4
+#define PPM_MAX_100 100
+#define PPM_MIN_100 0
+// Channel ordering
+#define AILERON 0
+#define ELEVATOR 2
+#define THROTTLE 1
+#define RUDDER 3
 
 // The protocols below need an A7105 to be installed
 #define KYOSHO_A7105_INO
