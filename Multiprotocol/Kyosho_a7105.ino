@@ -80,6 +80,7 @@ static void __attribute__((unused)) KYOSHO_send_packet() {
 }
 
 uint16_t KYOSHO_callback() {
+  debugln("Kyosho");
 #ifndef FORCE_KYOSHO_TUNING
   A7105_AdjustLOBaseFreq(1);
 #endif
@@ -87,10 +88,6 @@ uint16_t KYOSHO_callback() {
     bind_counter--;
     if (bind_counter == 0) {
       BIND_DONE;
-      if (sub_protocol == KYOSHO_HYPE) {
-        A7105_WriteID(MProtocol_id);
-        A7105_WriteReg(A7105_03_FIFOI, 0x05);
-      }
     }
   } else {
     if (hopping_frequency_no == 0)

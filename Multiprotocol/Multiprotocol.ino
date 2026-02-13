@@ -97,6 +97,11 @@ uint8_t multi_protocols_index = 0xFF;
 void setup() {
   // Setup diagnostic uart before anything else
   Serial.begin(115200);
+  uint8_t reset_cause = MCUSR;
+  MCUSR = 0;
+
+  Serial.print("MCUSR = 0x");
+  Serial.println(reset_cause, HEX);
 
   // ATMEGA328p
   // Set all ports to inputs
@@ -117,7 +122,9 @@ void setup() {
   TCCR1B = (1 << CS11); // prescaler8, set timer1 to increment every
                         // 0.5us(16Mhz) and start timer
 
+  debugln("protocol_init");
   protocol_init();
+  debugln("protocol_init done");
   // Random
   random_init();
 
@@ -128,7 +135,7 @@ void setup() {
   SDI_on;
   SCLK_off;
 
-  delayMilliseconds(100);
+  delay(100);
 
   // Read status of bind button
   if (IS_BIND_BUTTON_on) {
@@ -187,7 +194,9 @@ void modules_reset() {
   A7105_Reset();
 #endif
   // Wait for every component to reset
-  delayMilliseconds(100);
+  debugln("Delay start");
+  delay(100);
+  debugln("Delay done");
   prev_power = 0xFD; // unused power value
 }
 
@@ -329,7 +338,9 @@ static void protocol_init() {
             protocol, sub_protocol, RX_num, option);
     if (protocol) {
       // Reset all modules
+      debugln("Module_reset");
       modules_reset();
+      debugln("Module_reset Done");
 
       uint8_t index = 0;
       // #if defined(FRSKYX_CC2500_INO) && defined(MULTI_EU)
@@ -357,6 +368,7 @@ static void protocol_init() {
         index++;
       }
     }
+    debugln("Protocol selection complete");
   }
 
 #if defined(WAIT_FOR_BIND) && defined(ENABLE_BIND_CH)
