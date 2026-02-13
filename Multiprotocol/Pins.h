@@ -11,32 +11,6 @@
  along with Multiprotocol.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// TX
-#define SERIAL_TX_pin 1 // PD1
-#define SERIAL_TX_port PORTD
-#define SERIAL_TX_ddr DDRD
-#define SERIAL_TX_output SERIAL_TX_ddr |= _BV(SERIAL_TX_pin)
-#define SERIAL_TX_on SERIAL_TX_port |= _BV(SERIAL_TX_pin)
-#define SERIAL_TX_off SERIAL_TX_port &= ~_BV(SERIAL_TX_pin)
-
-// Dial
-#define PROTO_DIAL1_pin 2
-#define PROTO_DIAL1_port PORTB
-#define PROTO_DIAL1_ipr PINB
-#define PROTO_DIAL2_pin 3
-#define PROTO_DIAL2_port PORTB
-#define PROTO_DIAL2_ipr PINB
-#define PROTO_DIAL3_pin 4
-#define PROTO_DIAL3_port PORTB
-#define PROTO_DIAL3_ipr PINB
-#define PROTO_DIAL4_pin 0
-#define PROTO_DIAL4_port PORTC
-#define PROTO_DIAL4_ipr PINC
-
-// PPM
-#define PPM_pin 3 // D3 = PD3
-#define PPM_port PORTD
-
 // SDIO
 #define SDI_pin 5 // D5 = PD5
 #define SDI_port PORTD
@@ -49,7 +23,7 @@
 #define SDI_input SDI_ddr &= ~_BV(SDI_pin)
 #define SDI_output SDI_ddr |= _BV(SDI_pin)
 
-// SDO
+// SDO - unused for A7105
 #define SDO_pin 6 // D6 = PD6
 #define SDO_port PORTD
 #define SDO_ipr PIND
@@ -72,21 +46,6 @@
 #define A7105_CSN_on A7105_CSN_port |= _BV(A7105_CSN_pin)
 #define A7105_CSN_off A7105_CSN_port &= ~_BV(A7105_CSN_pin)
 
-// RF Switch
-#define PE1_pin 1 // A1 = PC1
-#define PE1_port PORTC
-#define PE1_ddr DDRC
-#define PE1_output PE1_ddr |= _BV(PE1_pin)
-#define PE1_on PE1_port |= _BV(PE1_pin)
-#define PE1_off PE1_port &= ~_BV(PE1_pin)
-
-#define PE2_pin 2 // A2 = PC2
-#define PE2_port PORTC
-#define PE2_ddr DDRC
-#define PE2_output PE2_ddr |= _BV(PE2_pin)
-#define PE2_on PE2_port |= _BV(PE2_pin)
-#define PE2_off PE2_port &= ~_BV(PE2_pin)
-
 // BIND
 #define BIND_pin 5 // D13 = PB5
 #define BIND_port PORTB
@@ -96,12 +55,6 @@
 #define BIND_SET_OUTPUT BIND_ddr |= _BV(BIND_pin)
 #define BIND_SET_PULLUP BIND_port |= _BV(BIND_pin)
 #define IS_BIND_BUTTON_on ((BIND_ipr & _BV(BIND_pin)) == 0x00)
-
-//***    Timer    ***
-#define OCF1A_bm _BV(OCF1A)
-#define OCF1B_bm _BV(OCF1B)
-#define SET_TIMSK1_OCIE1B TIMSK1 |= _BV(OCIE1B)
-#define CLR_TIMSK1_OCIE1B TIMSK1 &= ~_BV(OCIE1B)
 
 //***    EEPROM   ***
 #define EE_ADDR uint8_t *

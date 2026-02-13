@@ -26,17 +26,12 @@ void A7105_WriteData(uint8_t len, uint8_t channel) {
   SPI_Write(A7105_05_FIFO_DATA);
   for (i = 0; i < len; i++)
     SPI_Write(packet[i]);
-  A7105_CSN_on;
-  if (protocol != PROTO_WFLY2) {
-    if (!(protocol == PROTO_FLYSKY ||
-          (protocol == PROTO_KYOSHO && sub_protocol == KYOSHO_HYPE))) {
-      A7105_Strobe(
-          A7105_STANDBY);       // Force standby mode, ie cancel any TX or RX...
-      A7105_SetTxRxMode(TX_EN); // Switch to PA
-    }
+    A7105_CSN_on;
+    A7105_Strobe(
+        A7105_STANDBY);       // Force standby mode, ie cancel any TX or RX...
+    A7105_SetTxRxMode(TX_EN); // Switch to PA
     A7105_WriteReg(A7105_0F_PLL_I, channel);
     A7105_Strobe(A7105_TX);
-  }
 }
 
 void A7105_ReadData(uint8_t len) {
@@ -449,15 +444,6 @@ void A7105_Init(void) {
         //	A7105_ReadReg(A7105_22_IF_CALIB_I);
         //	A7105_ReadReg(A7105_24_VCO_CURCAL);
 
-    if (protocol != PROTO_HUBSAN) {
-      // VCO Current Calibration
-      A7105_WriteReg(A7105_24_VCO_CURCAL,
-                     0x13); // Recommended calibration from A7105 Datasheet
-      // VCO Bank Calibration
-      A7105_WriteReg(A7105_26_VCO_SBCAL_II,
-                     0x3b); // Recommended calibration from A7105 Datasheet
-    }
-
     // VCO Bank Calibrate channel 0
     A7105_WriteReg(A7105_0F_CHANNEL, 0);
     A7105_WriteReg(A7105_02_CALC, 2);
@@ -472,36 +458,16 @@ void A7105_Init(void) {
       ; // Wait for calibration to end
     vco_calibration1 = A7105_ReadReg(A7105_25_VCO_SBCAL_I);
 
-    if (protocol == PROTO_BUGS || protocol == PROTO_WFLY2)
-      A7105_SetVCOBand(vco_calibration0 & 0x07,
-                       vco_calibration1 &
-                           0x07); // Set calibration band value to best match
-    else if (protocol != PROTO_HUBSAN) {
-      switch (protocol) {
-      case PROTO_FLYSKY:
-        vco_calibration1 = 0x08;
-        break;
-      case PROTO_HEIGHT:
-        vco_calibration1 = 0x02;
-        break;
-      case PROTO_PELIKAN:
-        if (sub_protocol == PELIKAN_SCX24) {
-          vco_calibration1 = 0x0A;
-          break;
-        }
-      case PROTO_KYOSHO: // sub_protocol Hype
-        vco_calibration1 = 0x0C;
-        break;
-      case PROTO_JOYSWAY:
-        vco_calibration1 = 0x09;
-        break;
-      default:
-        vco_calibration1 = 0x0A;
-        break;
-      }
-      A7105_WriteReg(A7105_25_VCO_SBCAL_I,
-                     vco_calibration1); // Reset VCO Band calibration
+    switch (protocol) {
+    case PROTO_KYOSHO: // sub_protocol Hype
+      vco_calibration1 = 0x0C;
+      break;
+    default:
+      vco_calibration1 = 0x0A;
+      break;
     }
+    A7105_WriteReg(A7105_25_VCO_SBCAL_I,
+                    vco_calibration1); // Reset VCO Band calibration
   }
   A7105_SetTxRxMode(TX_EN);
   A7105_SetPower();

@@ -73,8 +73,8 @@ uint8_t protocol_flags = 0, protocol_flags2 = 0, protocol_flags3 = 0;
 uint8_t option_override;
 
 // Serial protocol
-uint8_t sub_protocol;
-uint8_t protocol;
+const uint8_t sub_protocol = KYOSHO_FHSS;
+const uint8_t protocol = PROTO_KYOSHO;
 uint8_t option;
 uint8_t cur_protocol[3];
 uint8_t prev_option;
@@ -109,9 +109,6 @@ void setup() {
 #ifdef A7105_CSN_pin
   A7105_CSN_output;
 #endif
-  PE1_output;
-  PE2_output;
-  SERIAL_TX_output;
 
   BIND_port |= _BV(BIND_pin);
 
@@ -176,21 +173,6 @@ void loop() {
   }
 }
 
-void End_Bind() {
-  // Request protocol to terminate bind
-  if (protocol == PROTO_FRSKYD || protocol == PROTO_FRSKYL ||
-      protocol == PROTO_FRSKYX || protocol == PROTO_FRSKYX2 ||
-      protocol == PROTO_FRSKYV || protocol == PROTO_FRSKY_R9 ||
-      protocol == PROTO_DSM_RX || protocol == PROTO_AFHDS2A_RX ||
-      protocol == PROTO_FRSKY_RX || protocol == PROTO_BAYANG_RX ||
-      protocol == PROTO_AFHDS2A || protocol == PROTO_BUGS ||
-      protocol == PROTO_BUGSMINI || protocol == PROTO_HOTT ||
-      protocol == PROTO_ASSAN)
-    BIND_DONE;
-  else if (bind_counter > 2)
-    bind_counter = 2;
-}
-
 // Update channels direction and Channel_AUX flags based on servo AUX positions
 static void update_channels_aux(void) {
   // Calc AUX flags
@@ -198,21 +180,6 @@ static void update_channels_aux(void) {
   for (uint8_t i = 0; i < 8; i++)
     if (Channel_data[CH5 + i] > CHANNEL_SWITCH)
       Channel_AUX |= 1 << i;
-}
-
-void rf_switch(uint8_t comp) {
-  PE1_off;
-  PE2_off;
-  switch (comp) {
-  case SW_CC2500:
-    PE2_on;
-    break;
-  case SW_CYRF:
-    PE2_on;
-  case SW_NRF:
-    PE1_on;
-    break;
-  }
 }
 
 void modules_reset() {
@@ -377,8 +344,6 @@ static void protocol_init() {
               (sub_protocol & 0x07) < multi_protocols[index].nbrSubProto)
             SUB_PROTO_VALID;
           if (IS_SUB_PROTO_VALID) { // Start the protocol
-            // Set the RF switch
-            rf_switch(multi_protocols[index].rfSwitch);
             // Init protocol
             multi_protocols[index].Init(); // Init could invalidate the sub
                                            // proto in case it is not suuported
@@ -411,12 +376,7 @@ static void protocol_init() {
     // Wait 5ms after protocol init
     cli();                    // disable global int
     OCR1A = TCNT1 + 5000 * 2; // set compare A for callback
-#ifndef STM32_BOARD
-    TIFR1 = OCF1A_bm; // clear compare A flag
-#else
-    TIMER2_BASE->SR =
-        0x1E5F & ~TIMER_SR_CC1IF; // Clear Timer2/Comp1 interrupt flag
-#endif
+    TIFR1 = _BV(OCF1A); // clear compare A flag
     sei();                // enable global int
     BIND_BUTTON_FLAG_off; // do not bind/reset id anymore even if protocol
                           // change
