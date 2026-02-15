@@ -115,18 +115,15 @@ void setup() {
   A7105_CSN_output;
 #endif
 
-  BIND_port |= _BV(BIND_pin);
+  BIND_SET_INPUT;
+  BIND_SET_PULLUP;
 
   // Timer1 config
   TCCR1A = 0;
   TCCR1B = (1 << CS11); // prescaler8, set timer1 to increment every
                         // 0.5us(16Mhz) and start timer
 
-  debugln("protocol_init");
   protocol_init();
-  debugln("protocol_init done");
-  // Random
-  random_init();
 
 // Set Chip selects
 #ifdef A7105_CSN_pin
@@ -139,6 +136,7 @@ void setup() {
 
   // Read status of bind button
   if (IS_BIND_BUTTON_on) {
+    debugln("Setting Bind");
     BIND_BUTTON_FLAG_on; // If bind button pressed save the status
     BIND_IN_PROGRESS;    // Request bind
   } else
@@ -194,9 +192,7 @@ void modules_reset() {
   A7105_Reset();
 #endif
   // Wait for every component to reset
-  debugln("Delay start");
   delay(100);
-  debugln("Delay done");
   prev_power = 0xFD; // unused power value
 }
 
@@ -338,9 +334,7 @@ static void protocol_init() {
             protocol, sub_protocol, RX_num, option);
     if (protocol) {
       // Reset all modules
-      debugln("Module_reset");
       modules_reset();
-      debugln("Module_reset Done");
 
       uint8_t index = 0;
       // #if defined(FRSKYX_CC2500_INO) && defined(MULTI_EU)
@@ -393,15 +387,4 @@ static void protocol_init() {
     BIND_BUTTON_FLAG_off; // do not bind/reset id anymore even if protocol
                           // change
   }
-}
-
-static void random_init(void) {
-  cli();     // Temporarily turn off interrupts, until WDT configured
-  MCUSR = 0; // Use the MCU status register to reset flags for WDR, BOR, EXTR,
-             // and POWR
-  WDTCSR |=
-      _BV(WDCE); // WDT control register, This sets the Watchdog Change Enable
-                 // (WDCE) flag, which is  needed to set the prescaler
-  WDTCSR = _BV(WDIE); // Watchdog interrupt enable (WDIE)
-  sei();              // Turn interupts on
 }

@@ -47,12 +47,11 @@
 #define A7105_CSN_off A7105_CSN_port &= ~_BV(A7105_CSN_pin)
 
 // BIND
-#define BIND_pin 5 // D13 = PB5
-#define BIND_port PORTB
-#define BIND_ipr PINB
-#define BIND_ddr DDRB
+#define BIND_pin 0 // D13 = PB5 -> changed to D14 = PC0
+#define BIND_port PORTC
+#define BIND_ipr PINC
+#define BIND_ddr DDRC
 #define BIND_SET_INPUT BIND_ddr &= ~_BV(BIND_pin)
-#define BIND_SET_OUTPUT BIND_ddr |= _BV(BIND_pin)
 #define BIND_SET_PULLUP BIND_port |= _BV(BIND_pin)
 #define IS_BIND_BUTTON_on ((BIND_ipr & _BV(BIND_pin)) == 0x00)
 

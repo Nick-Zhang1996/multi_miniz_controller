@@ -80,7 +80,6 @@ static void __attribute__((unused)) KYOSHO_send_packet() {
 }
 
 uint16_t KYOSHO_callback() {
-  debugln("Kyosho");
 #ifndef FORCE_KYOSHO_TUNING
   A7105_AdjustLOBaseFreq(1);
 #endif
@@ -88,6 +87,7 @@ uint16_t KYOSHO_callback() {
     bind_counter--;
     if (bind_counter == 0) {
       BIND_DONE;
+      debugln("Bind complete");
     }
   } else {
     if (hopping_frequency_no == 0)
