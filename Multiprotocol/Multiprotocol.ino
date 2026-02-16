@@ -142,8 +142,7 @@ void setup() {
   // Init RF modules
   modules_reset();
 
-  // Read or create protocol id
-  MProtocol_id_master = random_id(EEPROM_ID_OFFSET, false);
+  MProtocol_id_master = 0x12345678; // Forced transmitter ID, arbitrary
 
   debugln("Module Id: %lx", MProtocol_id_master);
   debugln("Init complete");
@@ -180,9 +179,12 @@ static void update_channels_aux(void) {
 }
 
 void modules_reset() {
-#ifdef A7105_INSTALLED
-  A7105_Reset();
-#endif
+  uint8_t result = A7105_Reset();
+  if (result) {
+    debugln("A7105 reset success");
+  } else {
+    debugln("A7105 reset FAIL");
+  }
   // Wait for every component to reset
   delay(100);
   prev_power = 0xFD; // unused power value
