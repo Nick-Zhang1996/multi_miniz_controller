@@ -37,8 +37,7 @@ static void __attribute__((unused)) KYOSHO_send_packet() {
     for (uint8_t i = 0; i < 16; i++)
       packet[i + 11] = hopping_frequency[i + (packet[9] << 4)];
     // TX type
-    packet[27] =
-        (bind_counter & 0x40) ? 0x05 : 0x07; // FHSS is 5 and Syncro is 7
+    packet[27] = 0x05;
     // Unknown
     packet[28] = 0x00;
     memset(packet + 29, 0xFF, 8);
@@ -51,9 +50,7 @@ static void __attribute__((unused)) KYOSHO_send_packet() {
     packet[0] = 0x58; // normal packet
     // FHSS  14 channels: steering, throttle, ...
     // Syncro 6 channels: steering, throttle, ...
-    for (uint8_t i = 0; i < 14;
-         i++) // needed? i < (sub_protocol==KYOSHO_FHSS?14:6); i++)
-    {
+    for (uint8_t i = 0; i < 14; i++) {
       uint16_t temp = convert_channel_ppm(i);
       packet[9 + i * 2] = temp & 0xFF; // low byte of servo timing(1000-2000us)
       packet[10 + i * 2] =
@@ -71,9 +68,8 @@ static void __attribute__((unused)) KYOSHO_send_packet() {
     rf_ch_num = hopping_frequency[hopping_frequency_no];
     hopping_frequency_no++;
     packet[34] |= (hopping_frequency_no & 0x0F) << 4;
-    packet[36] |=
-        (hopping_frequency_no &
-         0xF0); // last byte is ending with F on the dumps so let's see
+    // last byte is ending with F on the dumps so let's see
+    packet[36] |= (hopping_frequency_no & 0xF0);
     hopping_frequency_no &= 0x1F;
   }
   A7105_WriteData(37, rf_ch_num);
