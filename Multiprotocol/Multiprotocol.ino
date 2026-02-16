@@ -97,11 +97,6 @@ uint8_t multi_protocols_index = 0xFF;
 void setup() {
   // Setup diagnostic uart before anything else
   Serial.begin(115200);
-  uint8_t reset_cause = MCUSR;
-  MCUSR = 0;
-
-  Serial.print("MCUSR = 0x");
-  Serial.println(reset_cause, HEX);
 
   // ATMEGA328p
   // Set all ports to inputs
@@ -111,9 +106,7 @@ void setup() {
   // Set outputs
   SDI_output;
   SCLK_output;
-#ifdef A7105_CSN_pin
   A7105_CSN_output;
-#endif
 
   BIND_SET_INPUT;
   BIND_SET_PULLUP;
@@ -125,10 +118,8 @@ void setup() {
 
   protocol_init();
 
-// Set Chip selects
-#ifdef A7105_CSN_pin
+  // Set Chip selects
   A7105_CSN_on;
-#endif
   SDI_on;
   SCLK_off;
 
@@ -139,8 +130,9 @@ void setup() {
     debugln("Setting Bind");
     BIND_BUTTON_FLAG_on; // If bind button pressed save the status
     BIND_IN_PROGRESS;    // Request bind
-  } else
+  } else {
     BIND_DONE;
+  }
 
   // Set default channels' value
   for (uint8_t i = 0; i < NUM_CHN; i++)
@@ -382,9 +374,9 @@ static void protocol_init() {
     // Wait 5ms after protocol init
     cli();                    // disable global int
     OCR1A = TCNT1 + 5000 * 2; // set compare A for callback
-    TIFR1 = _BV(OCF1A); // clear compare A flag
-    sei();                // enable global int
-    BIND_BUTTON_FLAG_off; // do not bind/reset id anymore even if protocol
-                          // change
+    TIFR1 = _BV(OCF1A);       // clear compare A flag
+    sei();                    // enable global int
+    BIND_BUTTON_FLAG_off;     // do not bind/reset id anymore even if protocol
+                              // change
   }
 }
