@@ -57,7 +57,7 @@ uint8_t A7105_ReadReg(uint8_t address) {
   SPI_Write(address |= 0x40); // bit 6 =1 for reading
   result = SPI_SDI_Read();
   A7105_CSN_on;
-  return (result);
+  return result;
 }
 
 //------------------------
@@ -243,50 +243,18 @@ void A7105_Init(void) {
   }
   A7105_Strobe(A7105_STANDBY);
 
-  if (protocol == PROTO_KYOSHO &&
-      sub_protocol != KYOSHO_HYPE) { // strange calibration...
-    // IF Filter Bank Calibration
-    A7105_WriteReg(A7105_02_CALC, 0x0F);
-    while (A7105_ReadReg(A7105_02_CALC))
-      ; // Wait for calibration to end
-    //	A7105_ReadReg(A7105_22_IF_CALIB_I);
-    //	A7105_ReadReg(A7105_24_VCO_CURCAL);
-    //	A7105_ReadReg(25_VCO_SBCAL_I);
-    //	A7105_ReadReg(1A_RX_GAIN_II);
-    //	A7105_ReadReg(1B_RX_GAIN_III);
-  } else {
-    // IF Filter Bank Calibration
-    A7105_WriteReg(A7105_02_CALC, 1);
-    while (A7105_ReadReg(A7105_02_CALC))
-      ; // Wait for calibration to end
-        //	A7105_ReadReg(A7105_22_IF_CALIB_I);
-        //	A7105_ReadReg(A7105_24_VCO_CURCAL);
+  // IF Filter Bank Calibration
+  A7105_WriteReg(A7105_02_CALC, 0x0F);
+  while (A7105_ReadReg(A7105_02_CALC))
+    ; // Wait for calibration to end
+  A7105_ReadReg(A7105_22_IF_CALIB_I);
+  A7105_ReadReg(A7105_24_VCO_CURCAL);
+  uint8_t result = A7105_ReadReg(A7105_25_VCO_SBCAL_I);
+  // A7105_ReadReg(1A_RX_GAIN_II);
+  // A7105_ReadReg(1B_RX_GAIN_III);
+  Serial.print("VCO_SBCAL ");
+  Serial.println(result, HEX);
 
-    // VCO Bank Calibrate channel 0
-    A7105_WriteReg(A7105_0F_CHANNEL, 0);
-    A7105_WriteReg(A7105_02_CALC, 2);
-    while (A7105_ReadReg(A7105_02_CALC))
-      ; // Wait for calibration to end
-    vco_calibration0 = A7105_ReadReg(A7105_25_VCO_SBCAL_I);
-
-    // VCO Bank Calibrate channel A0
-    A7105_WriteReg(A7105_0F_CHANNEL, 0xa0);
-    A7105_WriteReg(A7105_02_CALC, 2);
-    while (A7105_ReadReg(A7105_02_CALC))
-      ; // Wait for calibration to end
-    vco_calibration1 = A7105_ReadReg(A7105_25_VCO_SBCAL_I);
-
-    switch (protocol) {
-    case PROTO_KYOSHO: // sub_protocol Hype
-      vco_calibration1 = 0x0C;
-      break;
-    default:
-      vco_calibration1 = 0x0A;
-      break;
-    }
-    A7105_WriteReg(A7105_25_VCO_SBCAL_I,
-                   vco_calibration1); // Reset VCO Band calibration
-  }
   A7105_SetTxRxMode(TX_EN);
   A7105_SetPower();
 
