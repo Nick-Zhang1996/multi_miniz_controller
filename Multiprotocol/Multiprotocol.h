@@ -16,6 +16,9 @@
 //******************
 // Version
 //******************
+#include <Arduino.h>
+#include <stdarg.h>
+#include <stdio.h>
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 3
 #define VERSION_REVISION 4
@@ -203,32 +206,34 @@ enum MultiPacketTypes {
 #define FAILSAFE_CHANNEL_NOPULSES 0
 
 //** Debug messages **
-uint16_t debug_time = 0;
-char debug_buf[128];
-#define debug(msg, ...)                                                        \
-  {                                                                            \
-    sprintf(debug_buf, msg, ##__VA_ARGS__);                                    \
-    Serial.write(debug_buf);                                                   \
-  }
-#define debugln(msg, ...)                                                      \
-  {                                                                            \
-    sprintf(debug_buf, msg "\r\n", ##__VA_ARGS__);                             \
-    Serial.write(debug_buf);                                                   \
-  }
-#define debug_time(msg)                                                        \
-  {                                                                            \
-    uint16_t debug_time_TCNT1 = TCNT1;                                         \
-    debug_time = debug_time_TCNT1 - debug_time;                                \
-    debug(msg "%u", debug_time >> 1);                                          \
-    debug_time = debug_time_TCNT1;                                             \
-  }
-#define debugln_time(msg)                                                      \
-  {                                                                            \
-    uint16_t debug_time_TCNT1 = TCNT1;                                         \
-    debug_time = debug_time_TCNT1 - debug_time;                                \
-    debug(msg "%u\r\n", debug_time >> 1);                                      \
-    debug_time = debug_time_TCNT1;                                             \
-  }
+
+inline void debug(const char* format, ...) {
+    char buffer[128];
+    
+    // Initialize the variadic argument list
+    va_list args;
+    va_start(args, format);
+    
+    // vsnprintf safely limits the output to the size of our buffer,
+    // guaranteeing we never overwrite adjacent memory.
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    
+    // Clean up the argument list
+    va_end(args);
+    
+    Serial.print(buffer);
+}
+
+inline void debugln(const char* format, ...) {
+    char buffer[128];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    
+    Serial.print(buffer);
+    Serial.println(); // Let Arduino's built-in library handle the \r\n cleanly
+}
 
 //********************
 //*** Blink timing ***

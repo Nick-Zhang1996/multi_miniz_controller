@@ -38,7 +38,7 @@
 #define SCLK_on SCLK_port |= _BV(SCLK_pin)
 #define SCLK_off SCLK_port &= ~_BV(SCLK_pin)
 
-// A7105
+// A7105 - obselete
 #define A7105_CSN_pin 2 // D2 = PD2
 #define A7105_CSN_port PORTD
 #define A7105_CSN_ddr DDRD
@@ -46,7 +46,7 @@
 #define A7105_CSN_on A7105_CSN_port |= _BV(A7105_CSN_pin)
 #define A7105_CSN_off A7105_CSN_port &= ~_BV(A7105_CSN_pin)
 
-// BIND
+// BIND - obselete
 #define BIND_pin 0 // D13 = PB5 -> changed to D14 = PC0
 #define BIND_port PORTC
 #define BIND_ipr PINC

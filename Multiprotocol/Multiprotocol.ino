@@ -8,6 +8,10 @@
 #include "Validate.h"
 
 #include <avr/eeprom.h>
+#include <Arduino.h>
+#include <avr/io.h>
+#include "a7105.hpp"
+#include "fhss.hpp"
 
 // Global constants/variables
 uint32_t MProtocol_id; // tx id,
@@ -91,8 +95,10 @@ volatile uint8_t rx_idx = 0, rx_len = 0;
 
 // Callback
 uint16_function_t remote_callback = 0;
-
 uint8_t multi_protocols_index = 0xFF;
+
+A7105 modem(2);
+FHSS trans(modem);
 
 void setup() {
   // Setup diagnostic uart before anything else
@@ -104,41 +110,14 @@ void setup() {
   DDRC = 0x00;
   DDRD = 0x00;
   // Set outputs
-  SDI_output;
-  SCLK_output;
-  A7105_CSN_output;
-
-  BIND_SET_INPUT;
-  BIND_SET_PULLUP;
 
   // Timer1 config
   TCCR1A = 0;
   TCCR1B = (1 << CS11); // prescaler8, set timer1 to increment every
                         // 0.5us(16Mhz) and start timer
 
-  MProtocol_id_master = 0x12345678; // Forced transmitter ID, arbitrary
-  protocol_init();
-
-  // Set Chip selects
-  A7105_CSN_on;
-  SDI_on;
-  SCLK_off;
-
+  trans.initialize();
   delay(100);
-
-  // Read status of bind button
-  if (IS_BIND_BUTTON_on) {
-    debugln("Setting Bind");
-    BIND_BUTTON_FLAG_on; // If bind button pressed save the status
-    BIND_IN_PROGRESS;    // Request bind
-  } else {
-    BIND_DONE;
-  }
-
-  // Set default channels' value
-  for (uint8_t i = 0; i < NUM_CHN; i++)
-    Channel_data[i] = 1024;
-  Channel_data[THROTTLE] = 0; // 0=-125%, 204=-100%
 
   // Init RF modules
   modules_reset();
@@ -152,7 +131,7 @@ uint8_t count = 0;
 void loop() {
   TX_MAIN_PAUSE_on;
   // Timer ticks till next call back
-  next_callback = remote_callback() << 1;
+  next_callback = trans.callback() << 1;
   TX_MAIN_PAUSE_off;
   cli(); // Prevent race condition in accessing multi-byte registers
   OCR1A += next_callback; // Calc when next_callback should happen
@@ -175,18 +154,6 @@ static void update_channels_aux(void) {
   for (uint8_t i = 0; i < 8; i++)
     if (Channel_data[CH5 + i] > CHANNEL_SWITCH)
       Channel_AUX |= 1 << i;
-}
-
-void modules_reset() {
-  uint8_t result = A7105_Reset();
-  if (result) {
-    debugln("A7105 reset success");
-  } else {
-    debugln("A7105 reset FAIL");
-  }
-  // Wait for every component to reset
-  delay(100);
-  prev_power = 0xFD; // unused power value
 }
 
 void Mprotocol_serial_init() {
