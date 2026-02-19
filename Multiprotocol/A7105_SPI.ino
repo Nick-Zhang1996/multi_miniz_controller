@@ -20,16 +20,15 @@
 #include "iface_a7105.h"
 
 void A7105_WriteData(uint8_t len, uint8_t channel) {
-  uint8_t i;
+  A7105_WriteReg(A7105_0F_PLL_I, channel);
   A7105_CSN_off;
   SPI_Write(A7105_RST_WRPTR);
   SPI_Write(A7105_05_FIFO_DATA);
-  for (i = 0; i < len; i++)
+  for (int i = 0; i < len; i++)
     SPI_Write(packet[i]);
   A7105_CSN_on;
-  A7105_Strobe(A7105_STANDBY); // Force standby mode, ie cancel any TX or RX...
-  A7105_SetTxRxMode(TX_EN);    // Switch to PA
-  A7105_WriteReg(A7105_0F_PLL_I, channel);
+  // A7105_Strobe(A7105_STANDBY); // Force standby mode, ie cancel any TX or
+  // RX... A7105_SetTxRxMode(TX_EN);    // Switch to PA
   A7105_Strobe(A7105_TX);
 }
 

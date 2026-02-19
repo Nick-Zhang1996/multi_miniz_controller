@@ -13,18 +13,19 @@
  along with Multiprotocol.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Pins.h"
 #include "iface_a7105.h"
 
-// #define KYOSHO_FORCE_ID_FHSS
+// #define KYOSHO_FORCE_ID
+
+// Kyosho constants & variables
 #define KYOSHO_BIND_COUNT 2500
 
-static void __attribute__((unused)) KYOSHO_send_packet() {
+static void __attribute__((unused)) kyosho_send_packet() {
   // ID
   packet[1] = rx_tx_addr[0];
   packet[2] = rx_tx_addr[1];
   packet[3] = rx_tx_addr[2];
-  packet[4] = 0x00;
+  packet[4] = rx_tx_addr[3];
   // unknown may be RX ID on some other remotes
   memset(packet + 5, 0xFF, 4);
 
@@ -36,9 +37,8 @@ static void __attribute__((unused)) KYOSHO_send_packet() {
     // RF table
     for (uint8_t i = 0; i < 16; i++)
       packet[i + 11] = hopping_frequency[i + (packet[9] << 4)];
-    // TX type
+    // unknwon
     packet[27] = 0x05;
-    // Unknown
     packet[28] = 0x00;
     memset(packet + 29, 0xFF, 8);
     // frequency hop during bind
@@ -48,73 +48,62 @@ static void __attribute__((unused)) KYOSHO_send_packet() {
       rf_ch_num = 0x0D;
   } else {
     packet[0] = 0x58; // normal packet
-    // FHSS  14 channels: steering, throttle, ...
-    // Syncro 6 channels: steering, throttle, ...
+    // 14 channels: steering, throttle, ...
     for (uint8_t i = 0; i < 14; i++) {
       uint16_t temp = convert_channel_ppm(i);
       packet[9 + i * 2] = temp & 0xFF; // low byte of servo timing(1000-2000us)
       packet[10 + i * 2] =
           (temp >> 8) & 0xFF; // high byte of servo timing(1000-2000us)
     }
-    // if(sub_protocol==KYOSHO_SYNCRO) 	// needed?
-    // {
-    // memcpy(&packet[21],&hopping_frequency[11],6);
-    // packet[27]  = 0x07;
-    // packet[28]  = 0x00;
-    // memset(packet+29,0xFF,8);
-    // packet[34] = 0x0F;
-    // packet[36] = 0x0F;
-    // }
     rf_ch_num = hopping_frequency[hopping_frequency_no];
     hopping_frequency_no++;
     packet[34] |= (hopping_frequency_no & 0x0F) << 4;
-    // last byte is ending with F on the dumps so let's see
-    packet[36] |= (hopping_frequency_no & 0xF0);
+    packet[36] |=
+        (hopping_frequency_no &
+         0xF0); // last byte is ending with F on the dumps so let's see
     hopping_frequency_no &= 0x1F;
   }
+  // debug("ch=%02X P=",rf_ch_num);
+  // for(uint8_t i=0; i<37; i++)
+  // debug("%02X ", packet[i]);
+  // debugln("");
   A7105_WriteData(37, rf_ch_num);
 }
 
-uint16_t KYOSHO_callback() {
+uint16_t ReadKyosho() {
 #ifndef FORCE_KYOSHO_TUNING
   A7105_AdjustLOBaseFreq(1);
 #endif
   if (IS_BIND_IN_PROGRESS) {
     bind_counter--;
-    if (bind_counter == 0) {
+    if (bind_counter == 0)
       BIND_DONE;
-      debugln("Bind complete");
-    }
   } else {
-    if (hopping_frequency_no == 0)
-      A7105_SetPower();
+    A7105_SetPower();
+#ifdef MULTI_SYNC
+    telemetry_set_input_sync(3852);
+#endif
   }
-  KYOSHO_send_packet();
-  return packet_period;
+  kyosho_send_packet();
+  return 3852;
 }
 
-void KYOSHO_init() {
-  debugln("Kyosho init");
+uint16_t initKyosho() {
   A7105_Init();
 
-  // compute channels from ID
+  // compute 32 channels from ID
   calc_fh_channels(32);
   hopping_frequency_no = 0;
 
-#ifdef KYOSHO_FORCE_ID_FHSS
-  if (sub_protocol == KYOSHO_FHSS) {
-    memcpy(rx_tx_addr, "\x3A\x39\x37\x00", 4);
-    memcpy(hopping_frequency,
-           "\x29\x4C\x67\x92\x31\x1C\x77\x18\x23\x6E\x81\x5C\x8F\x5A\x51\x94"
-           "\x7A\x12\x45\x6C\x7F\x1E\x0D\x88\x63\x8C\x4F\x37\x26\x61\x2C\x8A",
-           32);
-  }
+#ifdef KYOSHO_FORCE_ID
+  memcpy(rx_tx_addr, "\x3A\x39\x37\x00", 4);
+  memcpy(hopping_frequency,
+         "\x29\x4C\x67\x92\x31\x1C\x77\x18\x23\x6E\x81\x5C\x8F\x5A\x51\x94\x7A"
+         "\x12\x45\x6C\x7F\x1E\x0D\x88\x63\x8C\x4F\x37\x26\x61\x2C\x8A",
+         32);
 #endif
 
   if (IS_BIND_IN_PROGRESS)
     bind_counter = KYOSHO_BIND_COUNT;
-
-  packet_sent = 0;
-  packet_period = 3852; // FHSS
-  debugln("Kyosho init complete");
+  return 2000;
 }

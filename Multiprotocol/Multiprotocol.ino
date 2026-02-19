@@ -116,6 +116,7 @@ void setup() {
   TCCR1B = (1 << CS11); // prescaler8, set timer1 to increment every
                         // 0.5us(16Mhz) and start timer
 
+  MProtocol_id_master = 0x12345678; // Forced transmitter ID, arbitrary
   protocol_init();
 
   // Set Chip selects
@@ -141,8 +142,6 @@ void setup() {
 
   // Init RF modules
   modules_reset();
-
-  MProtocol_id_master = 0x12345678; // Forced transmitter ID, arbitrary
 
   debugln("Module Id: %lx", MProtocol_id_master);
   debugln("Init complete");
@@ -347,9 +346,7 @@ static void protocol_init() {
             multi_protocols[index].Init(); // Init could invalidate the sub
                                            // proto in case it is not suuported
             if (IS_SUB_PROTO_VALID)
-              remote_callback =
-                  multi_protocols[index]
-                      .CallBack; // Save call back function address
+              remote_callback = multi_protocols[index].CallBack;
           }
           break;
         }
