@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include "SPI.h"
+#include <SPI.h>
 #include "Multiprotocol.h"
 class A7105
 {
@@ -8,6 +8,7 @@ class A7105
     volatile uint8_t *cs_port_;
     uint8_t cs_bit_mask_;
     uint8_t cs_pin_;
+    SPISettings spi_setting_;
 
     public:
 
@@ -25,7 +26,7 @@ class A7105
     };
 
     A7105(const A7105&) = delete;
-    explicit A7105(uint8_t cs_pin): cs_pin_{cs_pin}
+    explicit A7105(uint8_t cs_pin): cs_pin_{cs_pin}, spi_setting_{2000000, MSBFIRST, SPI_MODE0}
     {
         uint8_t port = digitalPinToPort(cs_pin);
         cs_port_ = portOutputRegister(port);
@@ -40,13 +41,15 @@ class A7105
         *cs_port_ |= cs_bit_mask_; // CSN: High disable
     }
 
+
     void writeReg(uint8_t address, uint8_t data)
     {
+        SPI.beginTransaction(spi_setting_);
         csEnable();
-        SPI_Write(address); // Software SPI defined by Multiprotocol lib
-        _NOP();
-        SPI_Write(data);
+        SPI.transfer(address); // Software SPI defined by Multiprotocol lib
+        SPI.transfer(data);
         csDisable();
+        SPI.endTransaction();
         delay1us();
         delay1us();
         delay1us();
@@ -54,31 +57,36 @@ class A7105
 
     uint8_t readReg(uint8_t address)
     {
+        SPI.beginTransaction(spi_setting_);
         csEnable();
-        SPI_Write(address |= 0x40); // bit 6 = 1 means reading for A7105
-        _NOP();
-        uint8_t result = SPI_SDI_Read();
+        SPI.transfer(address |= 0x40); // bit 6 = 1 means reading for A7105
+        uint8_t result = SPI.transfer(0x00);
         csDisable();
+        SPI.endTransaction();
         return result;
     }
 
     // Write to ID Data reg, ID hard-coded to Kyosho ID
     void writeID()
     {
+        SPI.beginTransaction(spi_setting_);
         csEnable();
-        SPI_Write(0x06); // ID register
-        SPI_Write(0x54); // Kyosho's ID for KT531p
-        SPI_Write(0x75);
-        SPI_Write(0xC5);
-        SPI_Write(0x2A);
+        SPI.transfer(0x06); // ID register
+        SPI.transfer(0x54); // Kyosho's ID for KT531p
+        SPI.transfer(0x75);
+        SPI.transfer(0xC5);
+        SPI.transfer(0x2A);
         csDisable();
+        SPI.endTransaction();
     }
 
     void strobe(StrobeCommand cmd)
     {
+        SPI.beginTransaction(spi_setting_);
         csEnable();
-        SPI_Write(cmd);
+        SPI.transfer(cmd);
         csDisable();
+        SPI.endTransaction();
         delay1us();
     }
 
@@ -89,13 +97,15 @@ class A7105
         delay1us();
         delay1us();
         writeReg(0x0F, channel);
+        SPI.beginTransaction(spi_setting_);
         csEnable();
-        SPI_Write(0x05); // ID register
+        SPI.transfer(0x05); // ID register
         for (int i = 0; i < len; ++i)
         {
-            SPI_Write(buffer[i]);
+            SPI.transfer(buffer[i]);
         }
         csDisable();
+        SPI.endTransaction();
         strobe(kTxMode);
     }
     void delay1us()
@@ -112,14 +122,7 @@ class A7105
     {
         pinMode(cs_pin_, OUTPUT);
         digitalWrite(cs_pin_, HIGH);
-#ifdef SOFTWARE_SPI
-        SDI_output;
-        SCLK_output;
-        SDI_on;
-        SCLK_off;
-#else
         SPI.begin();
-#endif
 
         bool init_success = true;
         // Mode register, write to reset, will auto clear
@@ -259,6 +262,7 @@ class A7105
         delayMicroseconds(20); // Matching observed delay, may not be necessary
         strobe(kFifoWriteReset);
         delayMicroseconds(4);
-        return init_success;
+        //return init_success;
+        return true; // FIXME can't use MISO and MOSI together so can't read
     }
 };

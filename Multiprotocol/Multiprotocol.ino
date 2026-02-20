@@ -22,7 +22,7 @@
 // MOSI D11 -> output 1k ohm -> SDIO
 // MISO D12 -> SDIO
 // SCK D13 -> SCK
-// CS default D10 input
+// CS D2
 
 
 
@@ -54,7 +54,7 @@ void setup() {
       delay(100);
     }
   }
-  delay(100);
+  delay(1);
 }
 
 uint16_t diff;

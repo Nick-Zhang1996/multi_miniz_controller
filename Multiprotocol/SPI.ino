@@ -72,46 +72,4 @@ uint8_t SPI_SDI_Read(void)
 	SDI_output;
 	return result;
 }
-#else
-#include <SPI.h>
-
-// Define your Chip Select pin
-const int SCS_PIN = 10; 
-
-// A7105 SPI Settings: 4MHz, MSB First, SPI Mode 0
-SPISettings a7105Settings(4000000, MSBFIRST, SPI_MODE0);
-
-// Replaces your manual SPI_Write
-void SPI_Write(uint8_t command) {
-    SPI.beginTransaction(a7105Settings);
-    digitalWrite(SCS_PIN, LOW);
-    
-    SPI.transfer(command);
-    
-    digitalWrite(SCS_PIN, HIGH);
-    SPI.endTransaction();
-}
-
-// Replaces your manual SPI_SDI_Read (3-wire mode)
-uint8_t SPI_SDI_Read(uint8_t regAddress) {
-    uint8_t result = 0;
-
-    SPI.beginTransaction(a7105Settings);
-    digitalWrite(SCS_PIN, LOW);
-    
-    // Step 1: Send the register address you want to read
-    // For A7105, the read bit is usually the address | 0x40 or similar 
-    // depending on your specific command byte format.
-    SPI.transfer(regAddress); 
-    
-    // Step 2: Read the value back
-    // We send a dummy byte (0x00) to trigger the clock cycles needed to read
-    result = SPI.transfer(0x00); 
-    
-    digitalWrite(SCS_PIN, HIGH);
-    SPI.endTransaction();
-    
-    return result;
-}
-
 #endif

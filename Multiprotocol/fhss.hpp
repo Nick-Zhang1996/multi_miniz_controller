@@ -3,7 +3,7 @@
 class FHSS{
     public:
     static constexpr uint8_t kChannelCount = 12;
-    static constexpr uint16_t kCallbackInterval = 3852; // in us
+    static constexpr uint16_t kCallbackInterval = 3853; // in us
 
     private:
     A7105& modem_;
