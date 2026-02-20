@@ -128,23 +128,17 @@ void setup() {
   delay(100);
 }
 
-uint16_t next_callback, diff;
+uint16_t diff;
 uint8_t count = 0;
 void loop() {
-  TX_MAIN_PAUSE_on;
-  // Timer ticks till next call back
-  next_callback = trans.callback() << 1;
-  TX_MAIN_PAUSE_off;
   cli(); // Prevent race condition in accessing multi-byte registers
-  OCR1A += next_callback; // Calc when next_callback should happen
+  OCR1A += trans.kCallbackInterval << 1; // Calc when next_callback should happen, 0.5us/ tick
   TIFR1 = _BV(OCF1A);     // Clear compare A=callback flag
   diff = OCR1A - TCNT1;   // Calc the time difference
   sei();
-  if ((diff & 0x8000) && !(next_callback & 0x8000)) {
-    debugln("Short CB:%d", next_callback);
-  } else {
-    while ((TIFR1 & _BV(OCF1A)) == 0) {
-      // Wait till compare timer triggers
-    }
+  // Timer ticks till next call back
+  trans.callback();
+  while ((TIFR1 & _BV(OCF1A)) == 0) {
+    // Wait till compare timer triggers
   }
 }

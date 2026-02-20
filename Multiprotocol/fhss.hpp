@@ -1,8 +1,11 @@
 #pragma once
 #include "a7105.hpp"
 class FHSS{
+    public:
+    static constexpr uint8_t kChannelCount = 12;
+    static constexpr uint16_t kCallbackInterval = 3852; // in us
+
     private:
-    static constexpr uint8_t kChannelCount = 14;
     A7105& modem_;
 
     bool is_binding_;
@@ -102,7 +105,7 @@ class FHSS{
         freq_idx_ = (freq_idx_ + 1) & 0x3F; // Take lower 6 bits, equivalent to mod 32
     }
 
-    uint16_t callback(){
+    void callback(){
         if (bindButtonPressed() && !is_binding_){
             is_binding_ = true;
             bind_countdown_ = 2000; // TODO
@@ -117,7 +120,6 @@ class FHSS{
         } else {
             sendNormalPacket();
         }
-        return 3850; // delay in us till next update
     }
 
     // Generate frequency hopping sequence in the range [02..77]
