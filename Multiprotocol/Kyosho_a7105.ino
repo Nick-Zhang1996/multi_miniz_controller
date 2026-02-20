@@ -13,6 +13,7 @@
  along with Multiprotocol.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef UNUSED
 #include "Pins.h"
 #include "iface_a7105.h"
 
@@ -118,3 +119,4 @@ void KYOSHO_init() {
   packet_period = 3852; // FHSS
   debugln("Kyosho init complete");
 }
+#endif

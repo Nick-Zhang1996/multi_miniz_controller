@@ -1,3 +1,4 @@
+#pragma once
 #include <Arduino.h>
 #include "SPI.h"
 #include "Multiprotocol.h"
@@ -31,11 +32,11 @@ class A7105
     }
     inline void csEnable()
     {
-        *cs_port_ &= ~_BV(cs_bit_mask_); // CSN: Low enable
+        *cs_port_ &= ~cs_bit_mask_; // CSN: Low enable
     }
     inline void csDisable()
     {
-        *cs_port_ |= _BV(cs_bit_mask_); // CSN: High disable
+        *cs_port_ |= cs_bit_mask_; // CSN: High disable
     }
 
     void writeReg(uint8_t address, uint8_t data)
@@ -45,6 +46,8 @@ class A7105
         _NOP();
         SPI_Write(data);
         csDisable();
+        delay1us();
+        delay1us();
         delay1us();
     }
 
@@ -81,8 +84,12 @@ class A7105
     // Transmit to air
     void tx(uint8_t channel, uint8_t *buffer, uint8_t len)
     {
+        strobe(kFifoWriteReset);
+        delay1us();
+        delay1us();
         writeReg(0x0F, channel);
         csEnable();
+        SPI_Write(0x05); // ID register
         for (int i = 0; i < len; ++i)
         {
             SPI_Write(buffer[i]);
@@ -106,8 +113,6 @@ class A7105
         SCLK_output;
         A7105_CSN_output;
 
-        BIND_SET_INPUT;
-        BIND_SET_PULLUP;
         A7105_CSN_on;
         SDI_on;
         SCLK_off;

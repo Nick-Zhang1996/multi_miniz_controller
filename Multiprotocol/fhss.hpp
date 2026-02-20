@@ -1,3 +1,4 @@
+#pragma once
 #include "a7105.hpp"
 class FHSS{
     private:
@@ -26,9 +27,10 @@ class FHSS{
 
     public:
 
+    // TODO set tx_id, 7CB838, 3D743B
     explicit FHSS(A7105& modem, uint8_t bind_pin) : 
     modem_{modem}, bind_pin_{bind_pin}, is_binding_{false}, bind_countdown_{0},
-    tx_id_{0x12345678}, freq_idx_{0}{
+    tx_id_{0x3D743B}, freq_idx_{0}{
         uint8_t port = digitalPinToPort(bind_pin_);
         bind_in_port_ = portInputRegister(port);
         bind_bitmask_ = digitalPinToBitMask(bind_pin_);
@@ -36,7 +38,10 @@ class FHSS{
             channels_[i] = 1500; // TODO set throttle to 0
             // 0=-125%, 204=-100%
         }
+
+        calc_fh_channels();
     }
+
     bool initialize(){
         pinMode(bind_pin_, INPUT_PULLUP);
         return modem_.initialize();
@@ -52,13 +57,15 @@ class FHSS{
         buffer_[2] = (tx_id_ >> 8) & 0xFF;
         buffer_[3] = tx_id_ & 0xFF;
         buffer_[4] = 0x00;
+        // Multiprotocol original, maybe for other protocols
+        //buffer_[4] = (buffer_[2] & 0xF0) | (buffer_[3] & 0x0F);
         memset(buffer_ + 5, 0xFF, 4);
 
         buffer_[9] = odd ? 0x01 : 0x00;
         buffer_[10] = 0x00;
         // RF table
         for (uint8_t i = 0; i < 16; i++)
-        buffer_[i + 11] = hopping_frequency[odd ? i+16 : i ];
+        buffer_[i + 11] = freq_table_[odd ? i+16 : i ];
         // TX type
         buffer_[27] = 0x05;
         // Unknown
@@ -80,9 +87,9 @@ class FHSS{
         // FHSS  14 channels: steering, throttle, ...
         for (uint8_t i = 0; i < 12; i++) {
             // low byte of servo timing(1000-2000us)
-            packet[9 + i * 2] = channels_[i] & 0xFF; 
+            buffer_[9 + i * 2] = channels_[i] & 0xFF; 
             // high byte of servo timing(1000-2000us)
-            packet[10 + i * 2] = (channels_[i] >> 8) & 0xFF; 
+            buffer_[10 + i * 2] = (channels_[i] >> 8) & 0xFF; 
         }
         // The last four bytes contain the frequency table index for the next packet
         // Weird format
@@ -110,7 +117,50 @@ class FHSS{
         } else {
             sendNormalPacket();
         }
-        return 3852
+        return 3850; // delay in us till next update
+    }
+
+    // Generate frequency hopping sequence in the range [02..77]
+    // Store at freq_table_
+    void  calc_fh_channels() {
+        const uint8_t num_ch = 32;
+        uint8_t idx = 0;
+        uint32_t rnd = tx_id_;
+        uint8_t max = (num_ch / 3) + 2;
+
+        while (idx < num_ch) {
+            uint8_t i;
+            uint8_t count_2_26 = 0, count_27_50 = 0, count_51_74 = 0;
+
+            rnd = rnd * 0x0019660D + 0x3C6EF35F; // Randomization
+            // Use least-significant byte. 73 is prime, so channels 76..77 are unused
+            uint8_t next_ch = ((rnd >> 8) % 73) + 2;
+            // Keep a distance of 5 between consecutive channels
+            if (idx != 0) {
+            if (freq_table_[idx - 1] > next_ch) {
+                if (freq_table_[idx - 1] - next_ch < 5)
+                continue;
+            } else if (next_ch - freq_table_[idx - 1] < 5)
+                continue;
+            }
+            // Check that it's not duplicated and spread uniformly
+            for (i = 0; i < idx; i++) {
+            if (freq_table_[i] == next_ch)
+                break;
+            if (freq_table_[i] <= 26)
+                count_2_26++;
+            else if (freq_table_[i] <= 50)
+                count_27_50++;
+            else
+                count_51_74++;
+            }
+            if (i != idx)
+            continue;
+            if ((next_ch <= 26 && count_2_26 < max) ||
+                (next_ch >= 27 && next_ch <= 50 && count_27_50 < max) ||
+                (next_ch >= 51 && count_51_74 < max))
+            freq_table_[idx++] = next_ch; // find hopping frequency
+        }
     }
 
 };
