@@ -7,6 +7,7 @@ class A7105
     private:
     volatile uint8_t *cs_port_;
     uint8_t cs_bit_mask_;
+    uint8_t cs_pin_;
 
     public:
 
@@ -24,7 +25,7 @@ class A7105
     };
 
     A7105(const A7105&) = delete;
-    explicit A7105(uint8_t cs_pin)
+    explicit A7105(uint8_t cs_pin): cs_pin_{cs_pin}
     {
         uint8_t port = digitalPinToPort(cs_pin);
         cs_port_ = portOutputRegister(port);
@@ -109,13 +110,16 @@ class A7105
     // for details refer to capture.csv and datasheet
     bool initialize()
     {
+        pinMode(cs_pin_, OUTPUT);
+        digitalWrite(cs_pin_, HIGH);
+#ifdef SOFTWARE_SPI
         SDI_output;
         SCLK_output;
-        A7105_CSN_output;
-
-        A7105_CSN_on;
         SDI_on;
         SCLK_off;
+#else
+        SPI.begin();
+#endif
 
         bool init_success = true;
         // Mode register, write to reset, will auto clear
