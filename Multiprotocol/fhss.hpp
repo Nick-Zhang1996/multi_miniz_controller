@@ -31,9 +31,9 @@ class FHSS{
     public:
 
     // TODO set tx_id, 7CB838, 3D743B
-    explicit FHSS(A7105& modem, uint8_t bind_pin) : 
+    explicit FHSS(A7105& modem, uint8_t bind_pin, uint32_t tx_id) : 
     modem_{modem}, bind_pin_{bind_pin}, is_binding_{false}, bind_countdown_{0},
-    tx_id_{0x3D743B}, freq_idx_{0}{
+    tx_id_{tx_id}, freq_idx_{0}{
         uint8_t port = digitalPinToPort(bind_pin_);
         bind_in_port_ = portInputRegister(port);
         bind_bitmask_ = digitalPinToBitMask(bind_pin_);
@@ -47,7 +47,9 @@ class FHSS{
 
     bool initialize(){
         pinMode(bind_pin_, INPUT_PULLUP);
-        return modem_.initialize();
+        // Multiple targets may share a modem, so init modem separately
+        // modem_.initialize();
+        return true;
     }
 
     void sendBindPacket(){
