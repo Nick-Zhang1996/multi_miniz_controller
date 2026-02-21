@@ -26,7 +26,7 @@ class A7105
     };
 
     A7105(const A7105&) = delete;
-    explicit A7105(uint8_t cs_pin): cs_pin_{cs_pin}, spi_setting_{2000000, MSBFIRST, SPI_MODE0}
+    explicit A7105(uint8_t cs_pin): cs_pin_{cs_pin}, spi_setting_{4000000, MSBFIRST, SPI_MODE0}
     {
         uint8_t port = digitalPinToPort(cs_pin);
         cs_port_ = portOutputRegister(port);
@@ -50,9 +50,6 @@ class A7105
         SPI.transfer(data);
         csDisable();
         SPI.endTransaction();
-        delay1us();
-        delay1us();
-        delay1us();
     }
 
     uint8_t readReg(uint8_t address)
@@ -87,15 +84,12 @@ class A7105
         SPI.transfer(cmd);
         csDisable();
         SPI.endTransaction();
-        delay1us();
     }
 
     // Transmit to air
     void tx(uint8_t channel, uint8_t *buffer, uint8_t len)
     {
         strobe(kFifoWriteReset);
-        delay1us();
-        delay1us();
         writeReg(0x0F, channel);
         SPI.beginTransaction(spi_setting_);
         csEnable();

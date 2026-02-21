@@ -4,6 +4,7 @@ class FHSS{
     public:
     static constexpr uint8_t kChannelCount = 12;
     static constexpr uint16_t kCallbackInterval = 3853; // in us
+    uint8_t bind_pin_; // Arduino pin idx for a Low enable bind button
 
     private:
     A7105& modem_;
@@ -20,7 +21,6 @@ class FHSS{
 
     // RC channel value
     uint16_t channels_[kChannelCount];
-    uint8_t bind_pin_; // Arduino pin idx for a Low enable bind button
     volatile uint8_t* bind_in_port_;
     uint8_t bind_bitmask_;
 
@@ -104,14 +104,13 @@ class FHSS{
         buffer_[36] = ((freq_idx_+1) & 0x30) + 0x0F;
 
         modem_.tx(freq_table_[freq_idx_] , buffer_, 37);
-        freq_idx_ = (freq_idx_ + 1) & 0x3F; // Take lower 6 bits, equivalent to mod 32
     }
 
     void callback(){
         if (bindButtonPressed() && !is_binding_){
             is_binding_ = true;
-            bind_countdown_ = 2000; // TODO
-            debugln("Binding start");
+            bind_countdown_ = 500;
+            debugln("Binding start pin:%d", bind_pin_);
         }
         if (is_binding_){
             sendBindPacket();
@@ -120,7 +119,18 @@ class FHSS{
                 debugln("Binding complete");
             }
         } else {
-            sendNormalPacket();
+            // Skip every other packet. 
+            // In KT531p implementation, all packets are prepared and loaded to the RF chip
+            // But the TX Strobe command is issued only on every other packet.
+            // The reason for this is unknown. 
+            // However, this means we can safety skip some packets. 
+            // This allows us to send to two receivers with one modem
+            // Since it takes 3.1 ms to transmit a packet, and there's only 3.8ms between hopping.
+            // If we skip half the packets, we have 7.6ms and can alternate between two receivers.
+            if (! (freq_idx_ & 0b1)){
+                sendNormalPacket();
+            }
+            freq_idx_ = (freq_idx_ + 1) & 0x3F; // Take lower 6 bits, equivalent to mod 32
         }
     }
 
