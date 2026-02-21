@@ -37,23 +37,3 @@
 #define SCLK_output SCLK_ddr |= _BV(SCLK_pin)
 #define SCLK_on SCLK_port |= _BV(SCLK_pin)
 #define SCLK_off SCLK_port &= ~_BV(SCLK_pin)
-
-// A7105 - obselete
-#define A7105_CSN_pin 2 // D2 = PD2
-#define A7105_CSN_port PORTD
-#define A7105_CSN_ddr DDRD
-#define A7105_CSN_output A7105_CSN_ddr |= _BV(A7105_CSN_pin)
-#define A7105_CSN_on A7105_CSN_port |= _BV(A7105_CSN_pin)
-#define A7105_CSN_off A7105_CSN_port &= ~_BV(A7105_CSN_pin)
-
-// BIND - obselete
-#define BIND_pin 0 // D13 = PB5 -> changed to D14 = PC0
-#define BIND_port PORTC
-#define BIND_ipr PINC
-#define BIND_ddr DDRC
-#define BIND_SET_INPUT BIND_ddr &= ~_BV(BIND_pin)
-#define BIND_SET_PULLUP BIND_port |= _BV(BIND_pin)
-#define IS_BIND_BUTTON_on ((BIND_ipr & _BV(BIND_pin)) == 0x00)
-
-//***    EEPROM   ***
-#define EE_ADDR uint8_t *

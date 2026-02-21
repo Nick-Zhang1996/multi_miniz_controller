@@ -1,6 +1,5 @@
 #pragma once
 #include <Arduino.h>
-#include <SPI.h>
 #include "Multiprotocol.h"
 class A7105
 {
@@ -8,7 +7,6 @@ class A7105
     volatile uint8_t *cs_port_;
     uint8_t cs_bit_mask_;
     uint8_t cs_pin_;
-    SPISettings spi_setting_;
 
     public:
 
@@ -26,7 +24,7 @@ class A7105
     };
 
     A7105(const A7105&) = delete;
-    explicit A7105(uint8_t cs_pin): cs_pin_{cs_pin}, spi_setting_{4000000, MSBFIRST, SPI_MODE0}
+    explicit A7105(uint8_t cs_pin): cs_pin_{cs_pin}
     {
         uint8_t port = digitalPinToPort(cs_pin);
         cs_port_ = portOutputRegister(port);
@@ -44,29 +42,24 @@ class A7105
 
     void writeReg(uint8_t address, uint8_t data)
     {
-        SPI.beginTransaction(spi_setting_);
         csEnable();
         SPI.transfer(address); // Software SPI defined by Multiprotocol lib
         SPI.transfer(data);
         csDisable();
-        SPI.endTransaction();
     }
 
     uint8_t readReg(uint8_t address)
     {
-        SPI.beginTransaction(spi_setting_);
         csEnable();
         SPI.transfer(address |= 0x40); // bit 6 = 1 means reading for A7105
         uint8_t result = SPI.transfer(0x00);
         csDisable();
-        SPI.endTransaction();
         return result;
     }
 
     // Write to ID Data reg, ID hard-coded to Kyosho ID
     void writeID()
     {
-        SPI.beginTransaction(spi_setting_);
         csEnable();
         SPI.transfer(0x06); // ID register
         SPI.transfer(0x54); // Kyosho's ID for KT531p
@@ -74,16 +67,13 @@ class A7105
         SPI.transfer(0xC5);
         SPI.transfer(0x2A);
         csDisable();
-        SPI.endTransaction();
     }
 
     void strobe(StrobeCommand cmd)
     {
-        SPI.beginTransaction(spi_setting_);
         csEnable();
         SPI.transfer(cmd);
         csDisable();
-        SPI.endTransaction();
     }
 
     // Transmit to air
@@ -91,7 +81,6 @@ class A7105
     {
         strobe(kFifoWriteReset);
         writeReg(0x0F, channel);
-        SPI.beginTransaction(spi_setting_);
         csEnable();
         SPI.transfer(0x05); // ID register
         for (int i = 0; i < len; ++i)
@@ -99,7 +88,6 @@ class A7105
             SPI.transfer(buffer[i]);
         }
         csDisable();
-        SPI.endTransaction();
         strobe(kTxMode);
     }
     void delay1us()
@@ -116,7 +104,6 @@ class A7105
     {
         pinMode(cs_pin_, OUTPUT);
         digitalWrite(cs_pin_, HIGH);
-        SPI.begin();
 
         bool init_success = true;
         // Mode register, write to reset, will auto clear

@@ -18,7 +18,7 @@
 #include <Arduino.h>
 #include "Pins.h"
 
-//#define SOFTWARE_SPI
+#define SOFTWARE_SPI
 #ifdef SOFTWARE_SPI
 void SPI_Write(uint8_t command)
 {
