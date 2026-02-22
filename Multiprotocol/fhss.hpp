@@ -24,6 +24,10 @@ class FHSS{
     volatile uint8_t* bind_in_port_;
     uint8_t bind_bitmask_;
 
+    // Where to read the values
+    const volatile uint16_t* const p_steering_;
+    const volatile uint16_t* const p_throttle_;
+
     bool bindButtonPressed(){
         return (*bind_in_port_ & bind_bitmask_) == 0;
     }
@@ -31,9 +35,14 @@ class FHSS{
     public:
 
     // TODO set tx_id, 7CB838, 3D743B
-    explicit FHSS(A7105& modem, uint8_t bind_pin, uint32_t tx_id) : 
+    explicit FHSS(A7105& modem, 
+        uint8_t bind_pin, 
+        uint32_t tx_id, 
+        const volatile uint16_t* const p_steering, 
+        const volatile uint16_t* const p_throttle ) : 
     modem_{modem}, bind_pin_{bind_pin}, is_binding_{false}, bind_countdown_{0},
-    tx_id_{tx_id}, freq_idx_{0}{
+    tx_id_{tx_id}, freq_idx_{0},
+    p_steering_{p_steering}, p_throttle_{p_throttle}{
         uint8_t port = digitalPinToPort(bind_pin_);
         bind_in_port_ = portInputRegister(port);
         bind_bitmask_ = digitalPinToBitMask(bind_pin_);
@@ -81,6 +90,8 @@ class FHSS{
         bind_countdown_--;
     }
     void sendNormalPacket(){
+        channels_[0] = *p_steering_;
+        channels_[1] = *p_throttle_;
         // Normal packet indicator
         buffer_[0] = 0x58; 
         // Tx id, different for each transmitter

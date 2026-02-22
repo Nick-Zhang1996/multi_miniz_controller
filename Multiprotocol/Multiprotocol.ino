@@ -9,13 +9,6 @@
 #include "Validate.h"
 #include "a7105.hpp"
 #include "fhss.hpp"
-// PIN mapping - bit-banging software SPI - 1.2MHz
-// SDIO - D5
-// SCLK - D4
-// CSN - D2
-// BIND - D14
-
-// Hardware SPi
 // MOSI D11 -> SDIO
 // MISO D12 -> unconnected
 // SCK D13 -> SCK
@@ -26,15 +19,29 @@
 // D16 A2-> BIND 3
 // D17 A3-> BIND 4
 
+// --- Constants & Types ---
+constexpr uint8_t kStartByte1 = 0xAA;
+constexpr uint8_t kStartByte2 = 0x55;
+constexpr size_t kPayloadSize = 20; // 10 uint16_t = 20 bytes
+
+enum class RxState {
+  kWaitStart1,
+  kWaitStart2,
+  kReadPayload,
+  kReadCrc
+};
+
+// Global or class-member array to hold the successfully validated data
+uint16_t g_pwm_data[10] = {0}; 
 
 
 SoftSPI soft_spi(11, 13);
 A7105 modem1(2); // CSN on D2
-FHSS trans1(modem1, 14,0x3D743B); // Bind pin on D14 (A0)
+FHSS trans1(modem1, 14,0x3D743B, g_pwm_data, g_pwm_data+1); // Bind pin on D14 (A0)
 A7105 modem2(3); // CSN on D3
-FHSS trans2(modem2, 15,0x4E5235); // Bind pin on D15 (A1)
+FHSS trans2(modem2, 15,0x4E5235, g_pwm_data+2, g_pwm_data+3); // Bind pin on D15 (A1)
 A7105 modem3(4); // CSN on D4
-FHSS trans3(modem3, 16,0x521234); // Bind pin on D16 (A2)
+FHSS trans3(modem3, 16,0x521234, g_pwm_data+4, g_pwm_data+5); // Bind pin on D16 (A2)
 
 // Schedule callbacks, min val: number of trans + 1
 constexpr uint8_t kTaskSize = 4;
@@ -51,6 +58,80 @@ uint16_t task_ts[kTaskSize] = {100, 100+400*2, 100+400*4};
 // Callback trans 
 FHSS* task_target[kTaskSize] = {&trans1, &trans2, &trans3};
 
+
+
+// --- Helper: CRC-8 Calculation ---
+uint8_t calculateCrc8(const uint8_t* data, size_t len) {
+  uint8_t crc = 0x00;
+  for (size_t i = 0; i < len; ++i) {
+    crc ^= data[i];
+    for (uint8_t j = 0; j < 8; ++j) {
+      if (crc & 0x80) {
+        crc = (crc << 1) ^ 0x07;
+      } else {
+        crc <<= 1;
+      }
+    }
+  }
+  return crc;
+}
+
+void processSerialData() {
+  static RxState state = RxState::kWaitStart1;
+  static uint8_t payload_buffer[kPayloadSize];
+  static size_t buffer_index = 0;
+
+  while (Serial.available() > 0) {
+    uint8_t incoming_byte = Serial.read();
+
+    switch (state) {
+      case RxState::kWaitStart1:
+        if (incoming_byte == kStartByte1) {
+          state = RxState::kWaitStart2;
+        }
+        break;
+
+      case RxState::kWaitStart2:
+        if (incoming_byte == kStartByte2) {
+          state = RxState::kReadPayload;
+          buffer_index = 0;
+        } else if (incoming_byte == kStartByte1) {
+          // Edge case: Saw 0xAA 0xAA (overlapping start bytes)
+          state = RxState::kWaitStart2; 
+        } else {
+          state = RxState::kWaitStart1;
+        }
+        break;
+
+      case RxState::kReadPayload:
+        payload_buffer[buffer_index++] = incoming_byte;
+        if (buffer_index >= kPayloadSize) {
+          state = RxState::kReadCrc;
+        }
+        break;
+
+      case RxState::kReadCrc:
+        // Calculate CRC over the received payload
+        uint8_t expected_crc = calculateCrc8(payload_buffer, kPayloadSize);
+        
+        if (incoming_byte == expected_crc) {
+          // Packet is 100% valid. Safely copy to the working array.
+          // Because AVR is an 8-bit architecture, casting a byte array to uint16_t* // works directly since Python struct.pack uses Little-Endian natively.
+          memcpy(g_pwm_data, payload_buffer, kPayloadSize);
+          // debugln("Good");
+          // Optional: Set a flag here to notify the rest of the system new data arrived
+        } else {
+          // Checksum failed, discard the packet
+          // debugln("val: %u, CRC Err Got:0x%02X, not 0x%02x ", g_pwm_data[0], incoming_byte, expected_crc); 
+          // debugln("Bad: %02X %02X %02X %02X %02X ", payload_buffer[0], payload_buffer[1], payload_buffer[2], payload_buffer[3], payload_buffer[4]);
+        }
+        
+        // Reset state machine to wait for the next frame
+        state = RxState::kWaitStart1;
+        break;
+    }
+  }
+}
 
 void setup() {
   // Setup diagnostic uart before anything else
@@ -101,6 +182,13 @@ void setup() {
   trans2.initialize();
   trans3.initialize();
 
+  // Flush serial RX buffer
+  while (Serial.available() > 0) {
+    Serial.read();
+  }
+  for (int i=0; i<10; i++){
+    g_pwm_data[i] = 1500;
+  }
   // First callback will take place at 100 ticks
   cli();
   TCNT1 = 0;
@@ -110,13 +198,35 @@ void setup() {
 }
 
 void loop() {
+  uint16_t current_time,dt;
+  // Check time budget till next callback, determine if reading serial
+  if (TCNT1 > OCR1A && TCNT1 - OCR1A > 5000*2 ){
+    // current_time = TCNT1;
+    // processSerialData(); // 1200us
+    // dt = (TCNT1 - current_time)/2;
+    // debugln("dt %u", dt);
+    g_pwm_data[0] = g_pwm_data[0] + 10;
+    if (g_pwm_data[0] > 1800){
+      g_pwm_data[0] = 1200;
+    }
+
+    g_pwm_data[2] = g_pwm_data[2] + 20;
+    if (g_pwm_data[2] > 1800){
+      g_pwm_data[2] = 1200;
+    }
+
+    g_pwm_data[4] = g_pwm_data[4] + 40;
+    if (g_pwm_data[4] > 1800){
+      g_pwm_data[4] = 1200;
+    }
+  }
+
   while ((TIFR1 & _BV(OCF1A)) == 0) {
     // Wait till compare timer triggers
   }
 
   // Register next callback
   // us -> ticks, 2 tick = 1us
-  uint16_t current_time = TCNT1;
   task_ts[new_task_idx] = OCR1A + (task_target[task_idx]->kCallbackInterval << 1); 
   task_target[new_task_idx] = task_target[task_idx];
   new_task_idx = (new_task_idx + 1) % kTaskSize;
@@ -126,9 +236,9 @@ void loop() {
   TIFR1 = _BV(OCF1A);     // Clear compare A=callback flag
   sei();
 
-  task_target[task_idx]->callback();
-  //debugln("us: %u Calling %d",current_time/2, task_target[task_idx]->bind_pin_);
-
+  task_target[task_idx]->callback(); // ~200us
   task_idx = next_task_idx;
 
+
 }
+
