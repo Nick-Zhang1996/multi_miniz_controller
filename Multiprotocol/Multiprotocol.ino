@@ -1,15 +1,12 @@
+#include <Arduino.h>
 #include <avr/pgmspace.h>
-
-#include "Multiprotocol.h"
-#include "_Config.h"
-
-#include "Pins.h"
-#include "TX_Def.h"
-#include "Validate.h"
-
 #include <avr/eeprom.h>
 #include <Arduino.h>
 #include <avr/io.h>
+
+#include "Multiprotocol.h"
+#include "_Config.h"
+#include "Validate.h"
 #include "a7105.hpp"
 #include "fhss.hpp"
 // PIN mapping - bit-banging software SPI - 1.2MHz
@@ -31,6 +28,7 @@
 
 
 
+SoftSPI soft_spi(11, 13);
 A7105 modem1(2); // CSN on D2
 FHSS trans1(modem1, 14,0x3D743B); // Bind pin on D14 (A0)
 A7105 modem2(3); // CSN on D3
@@ -59,31 +57,46 @@ void setup() {
   Serial.begin(115200);
 
   // ATMEGA328p
-  // Set all ports to inputs
-  DDRB = 0x00;
-  DDRC = 0x00;
-  DDRD = 0x00;
   // Set outputs
+  // Set hardware CS pin to output to avoid capacitive change taking over SPI bus
+  pinMode(10, OUTPUT);
+  digitalWrite(10,HIGH);
 
   // Timer1 config
   TCCR1A = 0;
   TCCR1B = (1 << CS11); // prescaler8, set timer1 to increment every
                         // 0.5us(16Mhz) and start timer
 
-  bool success = modem1.initialize();
-  success = modem2.initialize();
-  success = modem3.initialize();
-  debugln("Unknown A7105 init status due to circuit limitations, still usable");
-  /*
-  if (success){
-    debugln("A7105 Init success");
+  // SPI lib has a reference counter, 
+  // if we call begin() twice and end() once, hardware SPI won't be turned off
+  // This will block software SPI from accessing the pins
+  SPI.begin(); 
+  bool success1 = modem1.initialize();
+  if (success1){
+    debugln("A7105 1 Init success");
   } else {
-    debugln("A7105 Init fail");
-    while(true){
+    debugln("A7105 1 Init fail");
+  }
+
+  bool success2 = modem2.initialize();
+  if (success2){
+    debugln("A7105 2 Init success");
+  } else {
+    debugln("A7105 2 Init fail");
+  }
+
+  bool success3 = modem3.initialize();
+  if (success3){
+    debugln("A7105 3 Init success");
+  } else {
+    debugln("A7105 3 Init fail");
+  }
+  if (! (success1 && success2 && success3)){
+    while (1){
       delay(100);
     }
   }
-  */
+
   trans1.initialize();
   trans2.initialize();
   trans3.initialize();

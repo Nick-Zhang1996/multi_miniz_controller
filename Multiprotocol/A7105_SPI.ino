@@ -15,8 +15,7 @@
 /********************/
 /** A7105 routines **/
 /********************/
-#define A7105_INSTALLED
-#ifdef A7105_INSTALLED_UNUSED
+#ifdef __UNUSED__
 #include "iface_a7105.h"
 
 void A7105_WriteData(uint8_t len, uint8_t channel) {
