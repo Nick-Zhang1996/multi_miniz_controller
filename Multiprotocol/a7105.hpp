@@ -261,4 +261,9 @@ class A7105
         delayMicroseconds(4);
         return init_success;
     }
+
+    // Pull transmission status, true if transmission completed
+    bool checkTransmission(){
+        return !(readReg(0x00)& 1);// Bit 0: TRER: TRX state enabled
+    }
 };

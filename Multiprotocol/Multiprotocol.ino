@@ -204,15 +204,27 @@ void loop() {
   uint16_t current_time,dt;
   // Check time budget till next callback, determine if reading serial
   if (TCNT1 < OCR1A && OCR1A - TCNT1 > 2800*2 ){
-    processSerialData(); // 1200us
     PORTB |= 1;
-    _NOP();
+    processSerialData(); // <250
     PORTB &= ~1;
-    Serial.println(g_pwm_data[0]);
   }
 
+  bool trans_finished = false;
   while ((TIFR1 & _BV(OCF1A)) == 0) {
     // Wait till compare timer triggers
+
+    // Check transmission duration, 1400us
+    /*
+    if (TCNT1 < OCR1A && OCR1A - TCNT1 > 100*2 ){
+      if ((!trans_finished) && modem3.checkTransmission()){
+        trans_finished = true;
+        PORTB |= 1;
+        _NOP();
+        _NOP();
+        PORTB &= ~1;
+      }
+    }
+    */
   }
 
   // Register next callback
