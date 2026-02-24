@@ -139,7 +139,7 @@ if __name__=="__main__":
 
     T = 3.0
     FHSS.init()
-    for i in range(100):
+    for i in range(10000):
         car0.steering = sin(2*pi/T*(time())) * radians(26.1)
         car1.steering = sin(2*pi/T*(time()+0.3)) * radians(26.1)
         car2.steering = sin(2*pi/T*(time()+0.3)) * radians(26.1)
@@ -150,4 +150,4 @@ if __name__=="__main__":
         FHSS.send_pwm_array()
         FHSS.read_serial_monitor()
         print(FHSS.pwm_values)
-        sleep(0.02)
+        sleep(0.01)

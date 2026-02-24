@@ -142,6 +142,9 @@ void setup() {
   // Set hardware CS pin to output to avoid capacitive change taking over SPI bus
   pinMode(10, OUTPUT);
   digitalWrite(10,HIGH);
+  // DEBUG pin
+  pinMode(8, OUTPUT);
+  digitalWrite(8,LOW);
 
   // Timer1 config
   TCCR1A = 0;
@@ -200,25 +203,12 @@ void setup() {
 void loop() {
   uint16_t current_time,dt;
   // Check time budget till next callback, determine if reading serial
-  if (TCNT1 > OCR1A && TCNT1 - OCR1A > 5000*2 ){
-    // current_time = TCNT1;
-    // processSerialData(); // 1200us
-    // dt = (TCNT1 - current_time)/2;
-    // debugln("dt %u", dt);
-    g_pwm_data[0] = g_pwm_data[0] + 10;
-    if (g_pwm_data[0] > 1800){
-      g_pwm_data[0] = 1200;
-    }
-
-    g_pwm_data[2] = g_pwm_data[2] + 20;
-    if (g_pwm_data[2] > 1800){
-      g_pwm_data[2] = 1200;
-    }
-
-    g_pwm_data[4] = g_pwm_data[4] + 40;
-    if (g_pwm_data[4] > 1800){
-      g_pwm_data[4] = 1200;
-    }
+  if (TCNT1 < OCR1A && OCR1A - TCNT1 > 2800*2 ){
+    processSerialData(); // 1200us
+    PORTB |= 1;
+    _NOP();
+    PORTB &= ~1;
+    Serial.println(g_pwm_data[0]);
   }
 
   while ((TIFR1 & _BV(OCF1A)) == 0) {
