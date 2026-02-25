@@ -4,12 +4,14 @@ class FHSS{
     public:
     static constexpr uint8_t kChannelCount = 12;
     static constexpr uint16_t kCallbackInterval = 3853; // in us
+    static inline bool g_binding = false; // Global flag that a modem is binding
+
     uint8_t bind_pin_; // Arduino pin idx for a Low enable bind button
 
     private:
     A7105& modem_;
 
-    bool is_binding_;
+    bool is_binding_; // Flag that THIS instance is binding
     int bind_countdown_;
     uint8_t buffer_[64];
     uint32_t tx_id_;
@@ -87,9 +89,8 @@ class FHSS{
         memset(buffer_ + 29, 0xFF, 8);
         // frequency hop during bind
         modem_.tx( odd ? 0x8C : 0x0D, buffer_, 37);
-        bind_countdown_--;
     }
-    void sendNormalPacket(){
+    void sendNormalPacket() {
         channels_[0] = *p_steering_;
         channels_[1] = *p_throttle_;
         // Normal packet indicator
@@ -117,19 +118,31 @@ class FHSS{
         modem_.tx(freq_table_[freq_idx_] , buffer_, 37);
     }
 
-    void callback(){
+    // Execute callback, return next callback interval in us. If return is 0, then no callback
+    uint16_t callback(){
+        // Start binding
         if (bindButtonPressed() && !is_binding_){
             is_binding_ = true;
+            FHSS::g_binding = true;
             bind_countdown_ = 500;
             debugln("Binding start pin:%d", bind_pin_);
         }
+
         if (is_binding_){
+            // Send Binding packet
             sendBindPacket();
+            bind_countdown_--;
             if (bind_countdown_ == 0){
                 is_binding_ = false;
-                debugln("Binding complete");
+                FHSS::g_binding = false;
+                debugln("Binding complete -- Please reset Arduino");
             }
-        } else {
+            return kCallbackInterval;// For binding packets, use normal callback interval
+        } else if (FHSS::g_binding) {
+            // If any instance is binding Stop transmission
+            // This will not recover after binding, resetting Arduino is needed
+            return 0;
+        } else{
             // Skip every other packet. 
             // In KT531p implementation, all packets are prepared and loaded to the RF chip
             // But the TX Strobe command is issued only on every other packet.
@@ -141,7 +154,9 @@ class FHSS{
             if (! (freq_idx_ & 0b1)){
                 sendNormalPacket();
             }
-            freq_idx_ = (freq_idx_ + 1) & 0x3F; // Take lower 6 bits, equivalent to mod 32
+            // For normal packets, send every other packet, as official firmware does
+            freq_idx_ = (freq_idx_ + 2) & 0x3F; // Take lower 6 bits, equivalent to mod 32
+            return 2*kCallbackInterval;
         }
     }
 

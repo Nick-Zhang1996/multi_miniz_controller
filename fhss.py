@@ -23,7 +23,7 @@ class CarParams:
 class FHSS():
     car_count = 0
     cars = []
-    pwm_values = [1500] * 10 # 5 car, 2 val each (steering, throttle)
+    pwm_values = [1500] * 12 # 6 car, 2 val each (steering, throttle)
     frame_header = bytes([0xAA, 0x55])
 
     def __init__(self, param: CarParams):
@@ -60,25 +60,25 @@ class FHSS():
 
     @classmethod
     def send_pwm_array(cls) -> bool:
-        if len(FHSS.pwm_values) != 10:
-            raise ValueError("PWM array must contain exactly 10 elements")
+        if len(FHSS.pwm_values) != 12:
+            raise ValueError("PWM array must contain exactly 12 elements")
             
         try:
             # Pack 10 unsigned 16-bit integers (Little-Endian)
             # Result is exactly 20 bytes
-            payload = struct.pack('<10H', *FHSS.pwm_values)
+            payload = struct.pack('<12H', *FHSS.pwm_values)
             
             # Calculate CRC over the payload
             crc = FHSS.calculate_crc8(payload)
             # print(f'payload {payload} crc: {hex(crc)}')
             
-            # Construct the final 23-byte frame
+            # Construct the final 27-byte frame
             frame = bytearray(FHSS.frame_header)
             frame.extend(payload)
             frame.append(crc)
             
             count = FHSS.serial_port.write(frame)
-            return count == 23
+            return count == 27
             
         except serial.SerialException as e:
             print(f"Serial write error: {e}")
