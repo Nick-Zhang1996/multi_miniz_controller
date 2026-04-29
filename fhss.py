@@ -131,8 +131,8 @@ if __name__=="__main__":
     param = CarParams(
         min_pwm_left=1200,
         max_pwm_right=1800,
-        max_steering_left=radians(26.1),
-        max_steering_right=radians(26.1))
+        max_steering_left=radians(27),
+        max_steering_right=radians(27))
     car0 = FHSS(param)
     car1 = FHSS(param)
     car2 = FHSS(param)
@@ -140,13 +140,17 @@ if __name__=="__main__":
     T = 3.0
     FHSS.init()
     for i in range(10000):
-        car0.steering = sin(2*pi/T*(time())) * radians(26.1)
-        car1.steering = sin(2*pi/T*(time()+0.3)) * radians(26.1)
-        car2.steering = sin(2*pi/T*(time()+0.3)) * radians(26.1)
-        car0.actuate()
-        car1.actuate()
-        car2.actuate()
+        # car0.steering = sin(2*pi/T*(time())) * radians(26.1)
+        # car1.steering = sin(2*pi/T*(time()+0.3)) * radians(26.1)
+        # car2.steering = sin(2*pi/T*(time()+0.3)) * radians(26.1)
+        # car0.steering = radians(26)
+        # car1.steering = radians(26)
+        # car2.steering = radians(26)
+        # car0.actuate()
+        # car1.actuate()
+        # car2.actuate()
 
+        FHSS.pwm_values = [2000,1500] * 6
         FHSS.send_pwm_array()
         FHSS.read_serial_monitor()
         print(FHSS.pwm_values)
