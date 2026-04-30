@@ -10,7 +10,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-#from buzzracer.cars.car import Car, CarParams
+# from buzzracer.cars.car import Car, CarParams
+
 
 @dataclass
 class CarParams:
@@ -23,7 +24,7 @@ class CarParams:
 class FHSS():
     car_count = 0
     cars = []
-    pwm_values = [1500] * 12 # 6 car, 2 val each (steering, throttle)
+    pwm_values = [1500] * 12  # 6 car, 2 val each (steering, throttle)
     frame_header = bytes([0xAA, 0x55])
 
     def __init__(self, param: CarParams):
@@ -38,10 +39,10 @@ class FHSS():
 
     @classmethod
     def init(cls):
-        serial_port = '/dev/ttyUSB0'
+        serial_port = '/dev/ttyUSB1'
         try:
             FHSS.serial_port = serial.Serial(
-                serial_port, 115200, timeout=0.001, writeTimeout=0)
+                serial_port, 2000000, timeout=0.001, writeTimeout=0)
         except (FileNotFoundError, serial.serialutil.SerialException):
             print(f'interface {serial_port} not found')
             raise
@@ -57,33 +58,31 @@ class FHSS():
         FHSS.pwm_values[2*self.index] = steering_pwm
         FHSS.pwm_values[2*self.index + 1] = throttle_pwm
 
-
     @classmethod
     def send_pwm_array(cls) -> bool:
         if len(FHSS.pwm_values) != 12:
             raise ValueError("PWM array must contain exactly 12 elements")
-            
+
         try:
             # Pack 10 unsigned 16-bit integers (Little-Endian)
             # Result is exactly 20 bytes
             payload = struct.pack('<12H', *FHSS.pwm_values)
-            
+
             # Calculate CRC over the payload
             crc = FHSS.calculate_crc8(payload)
             # print(f'payload {payload} crc: {hex(crc)}')
-            
+
             # Construct the final 27-byte frame
             frame = bytearray(FHSS.frame_header)
             frame.extend(payload)
             frame.append(crc)
-            
+
             count = FHSS.serial_port.write(frame)
             return count == 27
-            
+
         except serial.SerialException as e:
             print(f"Serial write error: {e}")
             return False
-
 
     def mapdata(self, x, a, b, c, d):
         y = (x-a)/(b-a)*(d-c)+c
@@ -113,20 +112,21 @@ class FHSS():
             try:
                 # Read everything sitting in the OS buffer
                 raw_bytes = FHSS.serial_port.read(FHSS.serial_port.in_waiting)
-                
-                # Decode as ASCII. We use errors='replace' so that if a random 
-                # corrupted byte or binary artifact comes through, it prints a '?' 
+
+                # Decode as ASCII. We use errors='replace' so that if a random
+                # corrupted byte or binary artifact comes through, it prints a '?'
                 # instead of crashing the Python script with a UnicodeDecodeError.
                 text = raw_bytes.decode('ascii', errors='replace')
-                
-                # Print without adding an extra newline, since Arduino's println 
+
+                # Print without adding an extra newline, since Arduino's println
                 # already sends \r\n
                 print(text, end='', flush=True)
-                
+
             except serial.SerialException as e:
                 print(f"\n[Serial Read Error]: {e}")
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     pi = 3.14159
     param = CarParams(
         min_pwm_left=1200,
@@ -137,20 +137,16 @@ if __name__=="__main__":
     car1 = FHSS(param)
     car2 = FHSS(param)
 
-    T = 3.0
+    T = 1.0
     FHSS.init()
     for i in range(10000):
-        # car0.steering = sin(2*pi/T*(time())) * radians(26.1)
-        # car1.steering = sin(2*pi/T*(time()+0.3)) * radians(26.1)
-        # car2.steering = sin(2*pi/T*(time()+0.3)) * radians(26.1)
-        # car0.steering = radians(26)
-        # car1.steering = radians(26)
-        # car2.steering = radians(26)
-        # car0.actuate()
-        # car1.actuate()
-        # car2.actuate()
-
-        FHSS.pwm_values = [2000,1500] * 6
+        car0.steering = sin(2*pi/T*(time())) * radians(26.1)
+        car1.steering = sin(2*pi/T*(time()+0.3)) * radians(26.1)
+        car2.steering = sin(2*pi/T*(time()+0.3)) * radians(26.1)
+        car0.actuate()
+        car1.actuate()
+        car2.actuate()
+        # FHSS.pwm_values = [2000, 1500] * 6
         FHSS.send_pwm_array()
         FHSS.read_serial_monitor()
         print(FHSS.pwm_values)

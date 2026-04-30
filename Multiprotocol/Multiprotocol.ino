@@ -53,7 +53,7 @@ FHSS trans6(modem3, 19, 0x72CD79, g_pwm_data + 10,
             g_pwm_data + 11);  // Bind pin on D19 (A5)
 
 // Number of FHSS instances
-constexpr uint8_t kTransCount = 6;
+constexpr uint8_t kTransCount = 6;  // NOTE Update
 // Schedule callbacks, min val: number of trans + 1
 constexpr uint8_t kTaskSize = kTransCount + 1;
 // Index for pending task
